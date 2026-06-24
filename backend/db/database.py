@@ -1,0 +1,50 @@
+from datetime import datetime, timezone
+from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, Text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+from backend.utils.log import logger
+from backend import config
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class TalentPoolEntry(Base):
+    __tablename__ = "talent_pool"
+
+    id                  = Column(Integer, primary_key=True, autoincrement=True)
+    created_at          = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    full_name           = Column(String(200), nullable=False)
+    seniority_declared  = Column(String(20), nullable=False)
+    seniority_detected  = Column(String(20), nullable=True)
+    seniority_match     = Column(String(10), nullable=True)
+    tier                = Column(String(20), nullable=True)
+    original_filename   = Column(String(300), nullable=False)
+    file_mimetype       = Column(String(100), nullable=False)
+    file_blob           = Column(LargeBinary, nullable=False)
+    folder_path         = Column(String(500), nullable=True)
+    resume_text         = Column(Text, nullable=True)
+    analysis_json       = Column(Text, nullable=True)
+    priority_fixes_json = Column(Text, nullable=True)
+    verdict             = Column(Text, nullable=True)
+
+
+engine_kwargs = {"echo": False}
+if config.DATABASE_URL.startswith("postgresql"):
+    engine_kwargs["pool_size"] = 5
+    engine_kwargs["max_overflow"] = 10
+
+engine = create_async_engine(config.DATABASE_URL, **engine_kwargs)
+AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database initialized")
+
+
+async def get_session():
+    async with AsyncSessionLocal() as session:
+        yield session
