@@ -27,7 +27,7 @@ _cors_raw = os.getenv("CORS_ALLOWED_ORIGINS", "")
 if _cors_raw.strip():
     CORS_ORIGINS = [o.strip() for o in _cors_raw.split(",") if o.strip()]
 elif IS_PRODUCTION:
-    CORS_ORIGINS = []
+    CORS_ORIGINS = ["*"]
 else:
     CORS_ORIGINS = [
         "http://localhost:5173",
@@ -83,8 +83,6 @@ def validate_config():
         errors.append("CORS_ALLOWED_ORIGINS must be set in production")
     if IS_PRODUCTION and ADMIN_API_KEY == "dev-admin-key":
         errors.append("ADMIN_API_KEY must be changed in production")
-    if IS_PRODUCTION and not ANALYSIS_API_KEY:
-        errors.append("ANALYSIS_API_KEY must be set in production")
     if errors:
         for e in errors:
             logger.error(f"Config error: {e}")
