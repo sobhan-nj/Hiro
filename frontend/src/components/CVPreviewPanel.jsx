@@ -11,7 +11,7 @@ function CVPreviewPanel({ candidateId, resumeFilename }) {
     )
   }
 
-  const cvUrl = `/cv/${candidateId}`
+  const cvUrl = `/analysis/${candidateId}/pdf`
 
   return (
     <div className="cv-preview-container">

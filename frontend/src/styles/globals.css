@@ -216,19 +216,19 @@ body {
   overflow: hidden;
 }
 
-.analysis-panel {
+.cv-preview-panel {
   width: 38%;
   min-width: 340px;
-  background: #ffffff;
-  border-right: 1px solid #E5E7EB;
+  background: #EDEEF0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-right: 1px solid #E5E7EB;
 }
 
-.cv-preview-panel {
+.analysis-panel {
   flex: 1;
-  background: #EDEEF0;
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -922,15 +922,15 @@ body {
     flex-direction: column;
   }
 
-  .analysis-panel {
+  .cv-preview-panel {
     width: 100%;
     min-width: unset;
-    max-height: 60vh;
+    max-height: 40vh;
     border-right: none;
     border-bottom: 1px solid #E5E7EB;
   }
 
-  .cv-preview-panel {
+  .analysis-panel {
     min-height: 200px;
   }
 
