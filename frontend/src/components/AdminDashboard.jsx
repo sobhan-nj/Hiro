@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { getCandidates, getCandidate, downloadCV } from '../api/client.js'
-import DimensionCard from './DimensionCard.jsx'
+import SubsectionCard from './SubsectionCard.jsx'
 
 const TIER_CONFIG = {
   'Needs Work': { color: '#ef4444', bg: '#fef2f2' },
@@ -113,7 +113,10 @@ function AdminDashboard({ adminKey, onLogout }) {
               <h3>Priority Fixes</h3>
               <ol>
                 {analysis.priority_fixes.map((fix, i) => (
-                  <li key={i}>{fix}</li>
+                  <li key={i}>
+                    {fix.dimension_name && <span className="fix-dim">{fix.dimension_name}</span>}
+                    {fix.fix || fix}
+                  </li>
                 ))}
               </ol>
             </div>
@@ -137,16 +140,27 @@ function AdminDashboard({ adminKey, onLogout }) {
             </div>
           )}
 
-          {analysis.dimensions && (
+          {analysis.dimension_groups ? (
+            Object.entries(analysis.dimension_groups).map(([groupKey, group]) => (
+              <div key={groupKey} className="dimensions-section">
+                <h3>{group.icon} {group.label}</h3>
+                <div className="analysis-list" style={{ padding: 0 }}>
+                  {Object.entries(group.dimensions || {}).map(([key, dim]) => (
+                    <SubsectionCard key={key} dimKey={key} data={dim} isExpanded={false} isHighPriority={false} onToggle={() => {}} />
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : analysis.dimensions ? (
             <div className="dimensions-section">
               <h3>Dimension Analysis</h3>
-              <div className="dimensions-grid">
+              <div className="analysis-list" style={{ padding: 0 }}>
                 {Object.entries(analysis.dimensions).map(([key, dim]) => (
-                  <DimensionCard key={key} dimensionKey={key} data={dim} />
+                  <SubsectionCard key={key} dimKey={key} data={dim} isExpanded={false} isHighPriority={false} onToggle={() => {}} />
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     )

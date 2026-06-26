@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import UploadForm from './components/UploadForm.jsx'
 import LoadingScreen from './components/LoadingScreen.jsx'
-import ResultsView from './components/ResultsView.jsx'
+import SplitView from './components/SplitView.jsx'
 import AdminLogin from './components/AdminLogin.jsx'
 import AdminDashboard from './components/AdminDashboard.jsx'
 import { adminLogin } from './api/client.js'
@@ -70,7 +70,7 @@ function App() {
         {screen === 'loading' && <LoadingScreen />}
 
         {screen === 'results' && results && (
-          <ResultsView results={results} onReset={handleReset} />
+          <SplitView results={results} onReset={handleReset} />
         )}
 
         {screen === 'admin-login' && (

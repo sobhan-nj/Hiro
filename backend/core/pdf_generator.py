@@ -79,19 +79,6 @@ class AnalysisPDF(FPDF):
         self.set_text_color(50, 50, 50)
         self.ln(8)
 
-    def priority_badge(self, tier):
-        if not tier or tier == "P2":
-            return
-        label = "HIGH" if tier == "P1" else "LOW"
-        r, g, b = (239, 68, 68) if tier == "P1" else (107, 114, 128)
-        self.set_font("Arial", "B", 7)
-        self.set_fill_color(r, g, b)
-        self.set_text_color(255, 255, 255)
-        self.set_x(self.l_margin)
-        w = self.get_string_width(label) + 4
-        self.cell(w, 5, label, fill=True, new_x="END")
-        self.set_text_color(50, 50, 50)
-        self.ln(2)
 
 
 def generate_analysis_pdf(analysis: dict, candidate_name: str = "Candidate") -> bytes:
@@ -158,9 +145,9 @@ def generate_analysis_pdf(analysis: dict, candidate_name: str = "Candidate") -> 
                 fix_text = fix
                 prefix = ""
             else:
-                dim = fix.get("dimension_code", "")
+                dim_name = fix.get("dimension_name", "")
                 fix_text = fix.get("fix", "")
-                prefix = f"[{dim}] " if dim else ""
+                prefix = f"[{dim_name}] " if dim_name else ""
             pdf.set_font("Arial", "", 9)
             pdf.set_text_color(50, 50, 50)
             pdf._write(0, 5, f"{i}. {prefix}{fix_text}")
@@ -185,78 +172,73 @@ def generate_analysis_pdf(analysis: dict, candidate_name: str = "Candidate") -> 
             pdf.ln(2)
 
     # Dimensions
-    pdf.section_title("Dimension Analysis")
+    from backend.core.schema import DIMENSION_GROUPS
 
-    dimension_order = [
-        "C1_legal_approbation_status", "L1_layout_ats", "L2_linkedin",
-        "C2_bullet_quality_ownership", "C3_grammar_consistency",
-        "C4_section_order", "C5_professional_summary",
-        "C6_gap_risk", "C7_impact_so_what",
-        "C8_specialty_fit_rotation_relevance", "C9_keyword_density",
-        "C10_relevance_recency", "C11_fluff_buzzwords_jargon",
-        "C12_soft_skills", "C13_additional_context",
-        "C14_signature_formalities",
-    ]
-
-    for key in dimension_order:
-        dim = dimensions.get(key)
-        if not dim:
+    for group_key, group_info in DIMENSION_GROUPS.items():
+        group_dims = {}
+        for dk in group_info["keys"]:
+            if dk in dimensions:
+                group_dims[dk] = dimensions[dk]
+        if not group_dims:
             continue
 
-        if pdf.get_y() > 250:
+        if pdf.get_y() > 240:
             pdf.add_page()
 
-        name = dim.get("name", key)
-        rating = dim.get("rating", "N/A")
-        priority = dim.get("priority_tier", "")
-        summary = dim.get("summary", "")
-        issues = dim.get("issues", [])
-        fixes = dim.get("fixes", [])
+        pdf.section_title(f"{group_info['icon']} {group_info['label']}")
 
-        # Dimension header
-        pdf.set_font("Arial", "B", 10)
-        pdf.set_text_color(30, 58, 95)
-        pdf.set_x(pdf.l_margin)
-        pdf.cell(0, 7, pdf.safe_text(name), new_x="LMARGIN", new_y="NEXT")
+        for key in group_info["keys"]:
+            dim = dimensions.get(key)
+            if not dim:
+                continue
 
-        pdf.rating_badge(rating)
-        pdf.priority_badge(priority)
+            if pdf.get_y() > 250:
+                pdf.add_page()
 
-        # Summary
-        if summary:
-            pdf.set_font("Arial", "", 8)
-            pdf.set_text_color(60, 60, 60)
-            pdf._write(0, 4, summary)
-            pdf.ln(1)
+            name = dim.get("name", key)
+            rating = dim.get("rating", "N/A")
+            summary = dim.get("summary", "")
+            issues = dim.get("issues", [])
+            fixes = dim.get("fixes", [])
 
-        # Issues
-        if issues:
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_text_color(180, 50, 50)
+            pdf.set_font("Arial", "B", 10)
+            pdf.set_text_color(30, 58, 95)
             pdf.set_x(pdf.l_margin)
-            pdf.cell(0, 5, "Issues:", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Arial", "", 8)
-            pdf.set_text_color(80, 80, 80)
-            for issue in issues:
-                pdf._write(0, 4, f"  - {issue}")
-            pdf.ln(1)
+            pdf.cell(0, 7, pdf.safe_text(name), new_x="LMARGIN", new_y="NEXT")
 
-        # Fixes
-        if fixes:
-            pdf.set_font("Arial", "B", 8)
-            pdf.set_text_color(50, 150, 50)
-            pdf.set_x(pdf.l_margin)
-            pdf.cell(0, 5, "Fixes:", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Arial", "", 8)
-            pdf.set_text_color(80, 80, 80)
-            for fix in fixes:
-                pdf._write(0, 4, f"  - {fix}")
-            pdf.ln(1)
+            pdf.rating_badge(rating)
 
-        # Separator line
-        pdf.set_draw_color(220, 220, 220)
-        pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-        pdf.ln(3)
+            if summary:
+                pdf.set_font("Arial", "", 8)
+                pdf.set_text_color(60, 60, 60)
+                pdf._write(0, 4, summary)
+                pdf.ln(1)
+
+            if issues:
+                pdf.set_font("Arial", "B", 8)
+                pdf.set_text_color(180, 50, 50)
+                pdf.set_x(pdf.l_margin)
+                pdf.cell(0, 5, "Issues:", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Arial", "", 8)
+                pdf.set_text_color(80, 80, 80)
+                for issue in issues:
+                    pdf._write(0, 4, f"  - {issue}")
+                pdf.ln(1)
+
+            if fixes:
+                pdf.set_font("Arial", "B", 8)
+                pdf.set_text_color(50, 150, 50)
+                pdf.set_x(pdf.l_margin)
+                pdf.cell(0, 5, "Fixes:", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Arial", "", 8)
+                pdf.set_text_color(80, 80, 80)
+                for fix in fixes:
+                    pdf._write(0, 4, f"  - {fix}")
+                pdf.ln(1)
+
+            pdf.set_draw_color(220, 220, 220)
+            pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+            pdf.ln(3)
 
     # Output
     output = io.BytesIO()

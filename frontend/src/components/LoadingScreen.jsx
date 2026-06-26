@@ -4,7 +4,7 @@ const steps = [
   'Extracting text from PDF...',
   'Parsing document structure...',
   'Extracting keywords...',
-  'Running 16-dimension analysis...',
+  'Running 21-dimension analysis...',
   'Generating structured feedback...',
   'Building your report...',
 ]

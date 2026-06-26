@@ -57,6 +57,12 @@ class Header(BaseModel):
     foreign_trained_physician: bool = False
 
 
+class HighlightTarget(BaseModel):
+    section: str  # contact, professional_summary, work_experience, education, additional_context, signature_block
+    type: str = "section"  # "section" or "phrase"
+    phrase: str = ""  # only if type == "phrase"
+
+
 class DimensionResult(BaseModel):
     code: str = ""
     name: str = ""
@@ -66,11 +72,19 @@ class DimensionResult(BaseModel):
     summary: str = ""
     issues: list[str] = []
     fixes: list[str] = []
+    highlight_targets: list[HighlightTarget] = []
 
     @field_validator("issues", "fixes", mode="before")
     @classmethod
     def coerce_to_list(cls, v):
         if isinstance(v, str):
+            return [v]
+        return v
+
+    @field_validator("highlight_targets", mode="before")
+    @classmethod
+    def coerce_highlights(cls, v):
+        if isinstance(v, dict):
             return [v]
         return v
 
@@ -92,22 +106,27 @@ class OverallVerdict(BaseModel):
 
 
 class Dimensions(BaseModel):
-    L1_layout_ats: DimensionResult = DimensionResult(code="L1_layout_ats", name="Layout, Readability & ATS")
-    L2_linkedin: DimensionResult = DimensionResult(code="L2_linkedin", name="Professional Network Presence")
-    C1_legal_approbation_status: DimensionResult = DimensionResult(code="C1_legal_approbation_status", name="Legal & Approbation Status")
-    C2_bullet_quality_ownership: DimensionResult = DimensionResult(code="C2_bullet_quality_ownership", name="Bullet Quality & Ownership")
-    C3_grammar_consistency: DimensionResult = DimensionResult(code="C3_grammar_consistency", name="Grammar, Spelling & Consistency")
-    C4_section_order: DimensionResult = DimensionResult(code="C4_section_order", name="Section Order")
-    C5_professional_summary: DimensionResult = DimensionResult(code="C5_professional_summary", name="Professional Summary")
-    C6_gap_risk: DimensionResult = DimensionResult(code="C6_gap_risk", name="Gap & Risk Management")
-    C7_impact_so_what: DimensionResult = DimensionResult(code="C7_impact_so_what", name='Impact / "So What?"')
-    C8_specialty_fit_rotation_relevance: DimensionResult = DimensionResult(code="C8_specialty_fit_rotation_relevance", name="Specialty Fit & Rotation Relevance")
-    C9_keyword_density: DimensionResult = DimensionResult(code="C9_keyword_density", name="Keyword Density")
-    C10_relevance_recency: DimensionResult = DimensionResult(code="C10_relevance_recency", name="Relevance & Recency")
-    C11_fluff_buzzwords_jargon: DimensionResult = DimensionResult(code="C11_fluff_buzzwords_jargon", name="Fluff, Buzzwords & Jargon")
-    C12_soft_skills: DimensionResult = DimensionResult(code="C12_soft_skills", name="Soft Skills Integration")
-    C13_additional_context: DimensionResult = DimensionResult(code="C13_additional_context", name="Additional Context")
-    C14_signature_formalities: DimensionResult = DimensionResult(code="C14_signature_formalities", name="Signature & Formalities")
+    page_structure: DimensionResult = DimensionResult(code="page_structure", name="Page Structure")
+    visual_design_scannability: DimensionResult = DimensionResult(code="visual_design_scannability", name="Visual Design & Scannability")
+    ats_compatibility: DimensionResult = DimensionResult(code="ats_compatibility", name="ATS Compatibility")
+    section_order: DimensionResult = DimensionResult(code="section_order", name="Section Order")
+    formalities: DimensionResult = DimensionResult(code="formalities", name="Formalities")
+    professional_network: DimensionResult = DimensionResult(code="professional_network", name="Professional Network")
+    professional_summary: DimensionResult = DimensionResult(code="professional_summary", name="Professional Summary")
+    bullet_quality_ownership: DimensionResult = DimensionResult(code="bullet_quality_ownership", name="Bullet Quality & Ownership")
+    impact_so_what: DimensionResult = DimensionResult(code="impact_so_what", name='Impact / "So What?"')
+    specialty_fit_rotation_relevance: DimensionResult = DimensionResult(code="specialty_fit_rotation_relevance", name="Specialty Fit & Rotation Relevance")
+    keyword_density: DimensionResult = DimensionResult(code="keyword_density", name="Keyword Density")
+    relevance_recency: DimensionResult = DimensionResult(code="relevance_recency", name="Relevance & Recency")
+    soft_skills_integration: DimensionResult = DimensionResult(code="soft_skills_integration", name="Soft Skills Integration")
+    grammar_spelling_consistency: DimensionResult = DimensionResult(code="grammar_spelling_consistency", name="Grammar, Spelling & Consistency")
+    additional_context: DimensionResult = DimensionResult(code="additional_context", name="Additional Context")
+    legal_eligibility_status: DimensionResult = DimensionResult(code="legal_eligibility_status", name="Legal & Eligibility Status")
+    gaps_risk_signals: DimensionResult = DimensionResult(code="gaps_risk_signals", name="Gaps & Risk Signals")
+    pii_sensitive_data: DimensionResult = DimensionResult(code="pii_sensitive_data", name="PII & Sensitive Data")
+    white_space: DimensionResult = DimensionResult(code="white_space", name="White Space")
+    fluff_buzzwords: DimensionResult = DimensionResult(code="fluff_buzzwords", name="Fluff & Buzzwords")
+    bullet_length_formatting_consistency: DimensionResult = DimensionResult(code="bullet_length_formatting_consistency", name="Bullet Length & Formatting Consistency")
 
 
 class AnalysisReport(BaseModel):

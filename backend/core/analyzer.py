@@ -42,6 +42,7 @@ def _pydantic_to_dataclass(py_report: PydanticReport) -> DataclassReport:
     for key in DIMENSION_KEYS:
         dim = getattr(py_report.dimensions, key, None)
         if dim is not None:
+            hl_targets = [{"section": h.section, "type": h.type, "phrase": h.phrase} for h in dim.highlight_targets]
             report.dimensions[key] = DataclassDim(
                 code=dim.code,
                 name=dim.name,
@@ -51,6 +52,7 @@ def _pydantic_to_dataclass(py_report: PydanticReport) -> DataclassReport:
                 summary=dim.summary,
                 issues=dim.issues,
                 fixes=dim.fixes,
+                highlight_targets=hl_targets,
             )
 
     report.rewrites = [{"original": r.original, "rewritten": r.rewritten} for r in py_report.rewrites]

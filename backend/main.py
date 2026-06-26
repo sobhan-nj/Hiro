@@ -31,7 +31,7 @@ sentry_sdk.init(
 )
 from backend.core.parser import parse_file
 from backend.core.analyzer import analyze_resume
-from backend.core.schema import DIMENSION_KEYS
+from backend.core.schema import DIMENSION_KEYS, DIMENSION_GROUPS
 from backend.db.database import init_db, get_session, engine, TalentPoolEntry
 from backend.utils.file_storage import safe_save_to_folder
 
@@ -173,6 +173,29 @@ async def analyze(
 
     sorted_dims = {k: report.dimensions[k] for k in DIMENSION_KEYS if k in report.dimensions}
 
+    dim_groups = {}
+    for group_key, group_info in DIMENSION_GROUPS.items():
+        group_dims = {}
+        for dk in group_info["keys"]:
+            if dk in sorted_dims:
+                v = sorted_dims[dk]
+                group_dims[dk] = {
+                    "code": v.code,
+                    "name": v.name,
+                    "priority_tier": v.priority_tier,
+                    "rating": v.rating,
+                    "confidence": v.confidence,
+                    "summary": v.summary,
+                    "issues": v.issues,
+                    "fixes": v.fixes,
+                    "highlight_targets": getattr(v, 'highlight_targets', []),
+                }
+        dim_groups[group_key] = {
+            "icon": group_info["icon"],
+            "label": group_info["label"],
+            "dimensions": group_dims,
+        }
+
     report_dict = {
         "extraction_status": report.extraction_status,
         "extraction_notes": report.extraction_notes,
@@ -184,6 +207,7 @@ async def analyze(
             "detected_level": report.seniority_check.detected_level,
             "reason": report.seniority_check.reason,
         },
+        "dimension_groups": dim_groups,
         "dimensions": {
             k: {
                 "code": v.code,
@@ -194,9 +218,12 @@ async def analyze(
                 "summary": v.summary,
                 "issues": v.issues,
                 "fixes": v.fixes,
+                "highlight_targets": getattr(v, 'highlight_targets', []),
             }
             for k, v in sorted_dims.items()
         },
+        "resume_text": resume_text,
+        "resume_filename": file.filename,
         "rewrites": report.rewrites,
         "priority_fixes": report.priority_fixes,
         "tier": report.tier,
@@ -348,6 +375,26 @@ async def download_analysis_pdf(
         iter([pdf_bytes]),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="analysis_{safe_name}.pdf"'},
+    )
+
+
+@app.get("/cv/{candidate_id}")
+async def serve_cv_file(
+    candidate_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(TalentPoolEntry).where(TalentPoolEntry.id == candidate_id)
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    import io
+    return StreamingResponse(
+        iter([entry.file_blob]),
+        media_type=entry.file_mimetype,
+        headers={"Content-Disposition": f'inline; filename="{entry.original_filename}"'},
     )
 
 
