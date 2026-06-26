@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { analyzeResume } from '../api/client.js'
+import { analyzeResume, getJobStatus } from '../api/client.js'
 
 function UploadForm({ onAnalysis, onError, onLoading }) {
   const [file, setFile] = useState(null)
@@ -7,6 +7,7 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
   const [dragActive, setDragActive] = useState(false)
   const turnstileRef = useRef(null)
   const [turnstileToken, setTurnstileToken] = useState(null)
+  const pollRef = useRef(null)
 
   const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY
 
@@ -22,6 +23,12 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
       if (window.turnstile) window.turnstile.remove(widgetId)
     }
   }, [turnstileSiteKey])
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -48,6 +55,27 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
     }
   }
 
+  const pollJob = (jobId) => {
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await getJobStatus(jobId)
+        if (data.status === 'done') {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+          onAnalysis(data.result)
+        } else if (data.status === 'error') {
+          clearInterval(pollRef.current)
+          pollRef.current = null
+          onError(data.error || 'Analysis failed')
+        }
+      } catch (err) {
+        clearInterval(pollRef.current)
+        pollRef.current = null
+        onError('Lost connection to server')
+      }
+    }, 2000)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!file) {
@@ -68,7 +96,11 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
 
     try {
       const result = await analyzeResume(formData, turnstileToken)
-      onAnalysis(result)
+      if (result.job_id) {
+        pollJob(result.job_id)
+      } else {
+        onAnalysis(result)
+      }
     } catch (err) {
       const msg = err.response?.data?.detail || err.message || 'Analysis failed'
       onError(msg)
