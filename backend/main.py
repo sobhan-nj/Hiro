@@ -161,7 +161,7 @@ async def analyze(
         raise HTTPException(status_code=413, detail="File too large. Maximum 10MB.")
 
     try:
-        resume_text, raw_keywords, mime_type = parse_file(file_bytes, file.filename)
+        resume_text, raw_keywords, mime_type, resume_markdown = parse_file(file_bytes, file.filename)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -223,6 +223,7 @@ async def analyze(
             for k, v in sorted_dims.items()
         },
         "resume_text": resume_text,
+        "resume_markdown": resume_markdown,
         "resume_filename": file.filename,
         "rewrites": report.rewrites,
         "priority_fixes": report.priority_fixes,
@@ -247,6 +248,7 @@ async def analyze(
         file_blob=file_bytes,
         folder_path=folder_path,
         resume_text=resume_text,
+        resume_markdown=resume_markdown,
         analysis_json=json.dumps(report_dict),
         priority_fixes_json=json.dumps(report.priority_fixes),
         verdict=report.verdict,
@@ -395,6 +397,115 @@ async def serve_cv_file(
         iter([entry.file_blob]),
         media_type=entry.file_mimetype,
         headers={"Content-Disposition": f'inline; filename="{entry.original_filename}"'},
+    )
+
+
+@app.get("/cv/{candidate_id}/download/md")
+async def download_cv_markdown(
+    candidate_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(TalentPoolEntry).where(TalentPoolEntry.id == candidate_id)
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    md_text = entry.resume_markdown or entry.resume_text or ""
+    safe_name = entry.full_name.replace(" ", "_").replace("/", "_")
+    return StreamingResponse(
+        iter([md_text.encode("utf-8")]),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_resume.md"'},
+    )
+
+
+HTML_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{name} — Resume</title>
+<style>
+  @page {{ margin: 2cm; size: A4; }}
+  * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+  body {{
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: #1a1a2e;
+    line-height: 1.6;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: #fff;
+  }}
+  h2 {{
+    font-size: 1.15rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #1B2A4A;
+    border-bottom: 2px solid #1B2A4A;
+    padding-bottom: 0.3rem;
+    margin: 1.5rem 0 0.75rem;
+  }}
+  h2:first-child {{ margin-top: 0; }}
+  p {{
+    font-size: 0.95rem;
+    margin-bottom: 0.4rem;
+  }}
+  ul {{
+    padding-left: 1.5rem;
+    margin-bottom: 0.5rem;
+  }}
+  li {{
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+    line-height: 1.5;
+  }}
+  strong {{ color: #1a1a2e; }}
+  hr {{
+    border: none;
+    border-top: 1px solid #E5E7EB;
+    margin: 1rem 0;
+  }}
+  @media print {{
+    body {{ padding: 0; max-width: none; }}
+  }}
+</style>
+</head>
+<body>
+{content}
+</body>
+</html>"""
+
+
+@app.get("/cv/{candidate_id}/download/html")
+async def download_cv_html(
+    candidate_id: int,
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(
+        select(TalentPoolEntry).where(TalentPoolEntry.id == candidate_id)
+    )
+    entry = result.scalar_one_or_none()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    md_text = entry.resume_markdown or entry.resume_text or ""
+
+    import markdown as md_lib
+    html_body = md_lib.markdown(md_text, extensions=["extra", "sane_lists"])
+
+    html_content = HTML_TEMPLATE.format(
+        name=entry.full_name,
+        content=html_body,
+    )
+    safe_name = entry.full_name.replace(" ", "_").replace("/", "_")
+    return StreamingResponse(
+        iter([html_content.encode("utf-8")]),
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_resume.html"'},
     )
 
 

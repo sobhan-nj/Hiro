@@ -16,3 +16,4 @@ sentry-sdk[fastapi]==2.19.2
 greenlet==3.5.2
 slowapi==0.1.9
 fpdf2==2.8.3
+markdown==3.7

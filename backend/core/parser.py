@@ -104,7 +104,94 @@ def extract_keywords_from_text(text: str) -> list[str]:
     return sorted(set(cleaned))
 
 
-def parse_file(file_bytes: bytes, filename: str) -> tuple[str, list[str], str]:
+KNOWN_SECTIONS = {
+    "berufserfahrung", "work experience", "beruflicher werdegang", "professional experience",
+    "employment history", "career history", "positions held",
+    "ausbildung", "education", "bildung", "academic background", "studium",
+    "qualifikation", "qualifications", "skills", "kenntnisse", "fähigkeiten",
+    "kompetenzen", "competencies", "technical skills", "core competencies",
+    "zusammenfassung", "summary", "profil", "profile", "professional summary",
+    "personal profile", "über mich", "about me", "objective", "career objective",
+    "projekte", "projects", "projektarbeit",
+    "zertifikate", "certifications", "certificates", "fortbildung", "continuous education",
+    "weiterbildung", "training", "courses", "kurse",
+    "sprachen", "languages", "language skills", "fremdsprachen",
+    "publikationen", "publications", "veröffentlichungen",
+    "mitgliedschaften", "memberships", "engagements", "ehrenamt", "volunteering",
+    "ehrenamtliches engagement", "freiwilliges engagement",
+    "referenzen", "references", "empfehlungen",
+    "interessen", "interests", "hobbys", "hobbies", "leidenschaften",
+    "kontakt", "contact", "contact information", "persönliche daten",
+    "private daten", "personal information", "personal details",
+    "geburt", "birth", "familienstand", "marital status",
+    "adresse", "address", "anschrift",
+    "telefon", "phone", "telefonnummer", "phone number",
+    "e-mail", "email", "mail", "electronic mail",
+    "webseite", "website", "homepage", "portfolio",
+    "facharzt", "specialist", "approbation", "medical license",
+    "klinische erfahrung", "clinical experience", "station", "ward",
+    "fachrichtung", "specialty", "department", "abteilung",
+    "forschung", "research", "wissenschaft",
+    "lehrerfahrung", "teaching experience", "lehre",
+    "IT-Kenntnisse", "computer skills", "software skills",
+    "weiterbildungen", "advanced training",
+}
+
+
+def convert_text_to_markdown(text: str) -> str:
+    lines = text.split('\n')
+    result = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if not stripped:
+            result.append('')
+            i += 1
+            continue
+
+        if re.match(r'^[-=_]{3,}$', stripped):
+            result.append('---')
+            i += 1
+            continue
+
+        lower = stripped.lower().rstrip(':')
+        if lower in KNOWN_SECTIONS or (
+            stripped == stripped.upper()
+            and len(stripped) > 15
+            and not re.match(r'^[\d\s\-\+\/\.\:]+$', stripped)
+            and not re.match(r'^(OK|N\/A|DNA|CV|Dr|Mr|Ms|Prof|HR|IT|PR|CEO|CTO|CFO|COO|QA|UI|UX|API|SQL|HTML|CSS|JS|PDF|DOC|MD|BG|ST|NRW|BY|HE|SH|TH|NI|HB|HH|RP|SL|BB|MV|SN|BE|BR|AW|BW|LU|FFM|MUC|BER|HAM|Köln|KSN|DD|Erfurt|Freiburg|Rostock|Hannover|Bremen|Augsburg|Bonn|Düsseldorf|Leipzig|Dresden|Nürnberg|Stuttgart|München|Berlin|Hamburg|Köln|Frankfurt)$', stripped)
+        ):
+            clean_name = stripped.rstrip(':')
+            result.append(f'\n## {clean_name}\n')
+            i += 1
+            continue
+
+        if re.match(r'^[-•*►→‣⁃]\s+', stripped):
+            content = re.sub(r'^[-•*►→‣⁃]\s+', '', stripped)
+            result.append(f'- {content}')
+            i += 1
+            continue
+
+        label_match = re.match(r'^([A-ZÜÖÄa-züöäß][A-ZÜÖÄa-züöäß\s\.\/\-]{1,30}:)\s+(.+)$', stripped)
+        if label_match and len(label_match.group(1)) < 30:
+            label = label_match.group(1).rstrip(':')
+            value = label_match.group(2)
+            if not re.match(r'^\d{1,2}[\.\/]\d{1,2}[\.\/]\d{2,4}', stripped):
+                result.append(f'**{label}:** {value}')
+                i += 1
+                continue
+
+        result.append(stripped)
+        i += 1
+
+    output = '\n'.join(result)
+    output = re.sub(r'\n{3,}', '\n\n', output)
+    return output.strip()
+
+
+def parse_file(file_bytes: bytes, filename: str) -> tuple[str, list[str], str, str]:
     mime_type = validate_file_bytes(file_bytes, filename)
     if mime_type == "application/pdf":
         text = extract_text_from_pdf(file_bytes)
@@ -113,6 +200,7 @@ def parse_file(file_bytes: bytes, filename: str) -> tuple[str, list[str], str]:
     if not text.strip():
         raise ValueError("Could not extract text from file. May be image-based or corrupted.")
     text = clean_extracted_text(text)
+    markdown = convert_text_to_markdown(text)
     keywords = extract_keywords_from_text(text)
     logger.info(f"Parsed '{filename}': {len(text)} chars, {len(keywords)} raw keywords")
-    return text, keywords, mime_type
+    return text, keywords, mime_type, markdown

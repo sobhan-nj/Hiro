@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, Text
+from sqlalchemy import Column, String, Integer, DateTime, LargeBinary, Text, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from backend.utils.log import logger
@@ -25,6 +25,7 @@ class TalentPoolEntry(Base):
     file_blob           = Column(LargeBinary, nullable=False)
     folder_path         = Column(String(500), nullable=True)
     resume_text         = Column(Text, nullable=True)
+    resume_markdown     = Column(Text, nullable=True)
     analysis_json       = Column(Text, nullable=True)
     priority_fixes_json = Column(Text, nullable=True)
     verdict             = Column(Text, nullable=True)
@@ -42,6 +43,13 @@ AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_co
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE talent_pool ADD COLUMN IF NOT EXISTS resume_markdown TEXT"
+            ))
+        except Exception:
+            pass
     logger.info("Database initialized")
 
 

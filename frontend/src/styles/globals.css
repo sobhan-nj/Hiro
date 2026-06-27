@@ -546,7 +546,13 @@ body {
   color: #4B5563;
 }
 
-.cv-toggle {
+.cv-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.cv-action-btn {
   font-size: 0.75rem;
   padding: 0.3rem 0.7rem;
   background: #F3F4F6;
@@ -555,10 +561,74 @@ body {
   cursor: pointer;
   color: #4B5563;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 
-.cv-toggle:hover {
+.cv-action-btn:hover {
   background: #E5E7EB;
+}
+
+.cv-edit-btn {
+  color: #1B2A4A;
+  border-color: rgba(27, 42, 74, 0.3);
+}
+
+.cv-edit-btn:hover {
+  background: rgba(27, 42, 74, 0.05);
+}
+
+.cv-save-btn {
+  background: #1B2A4A;
+  color: white;
+  border-color: #1B2A4A;
+}
+
+.cv-save-btn:hover {
+  background: #0f1a30;
+}
+
+.cv-cancel-btn {
+  color: #dc2626;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.cv-cancel-btn:hover {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.cv-download-wrapper {
+  position: relative;
+}
+
+.cv-download-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background: #ffffff;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  overflow: hidden;
+  min-width: 160px;
+}
+
+.cv-download-menu button {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 0.8rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.cv-download-menu button:hover {
+  background: #F3F4F6;
 }
 
 .cv-document-wrapper {
@@ -582,17 +652,94 @@ body {
 }
 
 .cv-text-content {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 0.85rem;
-  line-height: 1.6;
-  color: #374151;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  margin: 0;
   background: #ffffff;
   border-radius: 6px;
   padding: 1.25rem;
   border: 1px solid #E5E7EB;
+}
+
+.cv-editor {
+  background: #fffef5;
+  border: 2px solid #1B2A4A;
+  border-radius: 6px;
+  padding: 1.25rem;
+  outline: none;
+  min-height: 200px;
+}
+
+.cv-editor:focus {
+  box-shadow: 0 0 0 3px rgba(27, 42, 74, 0.1);
+}
+
+/* Markdown body styles */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  color: #1B2A4A;
+  margin: 1rem 0 0.5rem;
+}
+
+.markdown-body h1:first-child,
+.markdown-body h2:first-child,
+.markdown-body h3:first-child {
+  margin-top: 0;
+}
+
+.markdown-body h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid #E5E7EB;
+  padding-bottom: 0.3rem;
+}
+
+.markdown-body h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.markdown-body p {
+  font-size: 0.85rem;
+  color: #374151;
+  margin-bottom: 0.4rem;
+  line-height: 1.6;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body li {
+  font-size: 0.85rem;
+  color: #374151;
+  margin-bottom: 0.2rem;
+  line-height: 1.5;
+}
+
+.markdown-body strong {
+  color: #1a1a2e;
+  font-weight: 600;
+}
+
+.markdown-body em {
+  color: #4B5563;
+}
+
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #E5E7EB;
+  margin: 1rem 0;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #D1D5DB;
+  padding-left: 0.75rem;
+  color: #6B7280;
+  font-style: italic;
+  margin: 0.5rem 0;
 }
 
 .cv-preview-empty {
