@@ -189,10 +189,9 @@ async def analyze(
         seniority = "mid"
     target_country = target_country.lower().strip() or "germany"
 
-    import json as _json
     try:
-        keywords_list = _json.loads(raw_keywords)
-    except (_json.JSONDecodeError, TypeError):
+        keywords_list = json.loads(raw_keywords)
+    except (json.JSONDecodeError, TypeError):
         keywords_list = []
 
     try:
@@ -467,7 +466,6 @@ async def serve_cv_file(
     if not entry:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    import io
     return StreamingResponse(
         iter([entry.file_blob]),
         media_type=entry.file_mimetype,
@@ -590,7 +588,7 @@ if STATIC_DIR.is_dir():
     async def serve_spa(full_path: str):
         if ".." in full_path:
             raise HTTPException(status_code=400, detail="Invalid path")
-        if full_path.startswith(("api/", "admin/", "health", "analyze", "analysis/", "cv/")):
+        if full_path.startswith(("api/", "admin/", "health", "analyze", "parse", "analysis/", "cv/")):
             raise HTTPException(status_code=404, detail="Not found")
         file_path = STATIC_DIR / full_path
         if file_path.is_file():

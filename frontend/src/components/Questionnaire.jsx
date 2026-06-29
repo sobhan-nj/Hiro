@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 
 const STEPS = [
   {
@@ -42,23 +42,21 @@ const STEPS = [
   },
 ]
 
-function Questionnaire({ onComplete, onStepAnswer, analyzing }) {
-  const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState({ seniority: 'mid', targetCountry: 'germany', referralSource: '' })
+function Questionnaire({ onComplete, onStepAnswer, analyzing, answers }) {
+  const [step, setStep] = React.useState(0)
 
   const current = STEPS[step]
   const isLast = step === STEPS.length - 1
   const progress = ((step + 1) / STEPS.length) * 100
 
   const handleSelect = (value) => {
-    setAnswers(prev => ({ ...prev, [current.key]: value }))
+    onStepAnswer(current.key, value)
   }
 
   const handleNext = () => {
     if (isLast) {
       onComplete(answers)
     } else {
-      onStepAnswer(current.key, answers[current.key])
       setStep(step + 1)
     }
   }
@@ -100,7 +98,7 @@ function Questionnaire({ onComplete, onStepAnswer, analyzing }) {
             Back
           </button>
         )}
-        <button className="btn-next-questionnaire" onClick={handleNext} disabled={analyzing && isLast}>
+        <button className="btn-next-questionnaire" onClick={handleNext}>
           {isLast ? (analyzing ? 'Analyzing...' : 'Analyze Resume') : 'Next'}
         </button>
       </div>

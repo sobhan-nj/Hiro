@@ -18,6 +18,15 @@ function App() {
   const [analysisDone, setAnalysisDone] = useState(false)
   const [allQuestionsDone, setAllQuestionsDone] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+  const [answers, setAnswers] = useState({ seniority: 'mid', targetCountry: 'germany', referralSource: '' })
+
+  const showResultsIfNeeded = () => {
+    if (analysisDone && analysisResult && allQuestionsDone) {
+      setAnalysisResult(analysisResult)
+      setScreen('results')
+      setError(null)
+    }
+  }
 
   const handleParseComplete = (data) => {
     setParsedData(data)
@@ -30,17 +39,14 @@ function App() {
     setScreen('upload')
   }
 
-  const handleQuestionnaireComplete = (answers) => {
+  const handleQuestionnaireComplete = (finalAnswers) => {
+    setAnswers(finalAnswers)
     setAllQuestionsDone(true)
     if (analysisDone && analysisResult) {
-      setResults(analysisResult)
+      setAnalysisResult(analysisResult)
+      setScreen('results')
+      setError(null)
     }
-  }
-
-  const setResults = (data) => {
-    setAnalysisResult(data)
-    setScreen('results')
-    setError(null)
   }
 
   const fireAnalysis = (seniority) => {
@@ -51,12 +57,16 @@ function App() {
       resume_markdown: parsedData.resume_markdown,
       raw_keywords: JSON.stringify(parsedData.raw_keywords),
       seniority,
+      target_country: answers.targetCountry,
+      referral_source: answers.referralSource,
       resume_filename: parsedData.filename,
     }).then(data => {
       setAnalysisResult(data)
       setAnalysisDone(true)
+      setAnalyzing(false)
       if (allQuestionsDone) {
-        setResults(data)
+        setScreen('results')
+        setError(null)
       }
     }).catch(err => {
       const msg = err.response?.data?.detail || err.message || 'Analysis failed'
@@ -72,6 +82,7 @@ function App() {
     setAnalysisDone(false)
     setAllQuestionsDone(false)
     setAnalyzing(false)
+    setAnswers({ seniority: 'mid', targetCountry: 'germany', referralSource: '' })
     setError(null)
     window.history.pushState({}, '', '/')
   }
@@ -89,10 +100,14 @@ function App() {
     window.history.pushState({}, '', '/admin')
   }
 
-  const handleQuestionAnswered = (stepKey, value) => {
-    if (stepKey === 'seniority') {
-      fireAnalysis(value)
-    }
+  const handleStepAnswer = (stepKey, value) => {
+    setAnswers(prev => {
+      const next = { ...prev, [stepKey]: value }
+      if (stepKey === 'seniority') {
+        fireAnalysis(value)
+      }
+      return next
+    })
   }
 
   return (
@@ -115,8 +130,9 @@ function App() {
         {screen === 'questionnaire' && (
           <Questionnaire
             onComplete={handleQuestionnaireComplete}
-            onStepAnswer={handleQuestionAnswered}
+            onStepAnswer={handleStepAnswer}
             analyzing={analyzing}
+            answers={answers}
           />
         )}
 
