@@ -30,6 +30,13 @@ export const getCandidate = async (key, id) => {
   return response.data
 }
 
+export const getStats = async (key) => {
+  const response = await api.get('/admin/stats', {
+    headers: { 'x-admin-key': key },
+  })
+  return response.data
+}
+
 export const downloadCV = async (key, id) => {
   const response = await api.get(`/admin/candidates/${id}/download`, {
     headers: { 'x-admin-key': key },

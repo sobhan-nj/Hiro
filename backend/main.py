@@ -3,6 +3,7 @@ import hmac
 import re
 import sentry_sdk
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Request, UploadFile, File, Form, Header, HTTPException, Depends
@@ -267,6 +268,49 @@ def _verify_admin_key(x_admin_key: str = Header(None)):
     if not x_admin_key or not hmac.compare_digest(str(x_admin_key), config.ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Invalid admin key")
     return x_admin_key
+
+
+@app.get("/admin/stats")
+async def get_stats(
+    admin_key: str = Depends(_verify_admin_key),
+    session: AsyncSession = Depends(get_session),
+):
+    from sqlalchemy import func
+
+    total = await session.scalar(select(func.count(TalentPoolEntry.id)))
+
+    tier_rows = await session.execute(
+        select(TalentPoolEntry.tier, func.count(TalentPoolEntry.id)).group_by(TalentPoolEntry.tier)
+    )
+    by_tier = {row[0] or "unknown": row[1] for row in tier_rows.all()}
+
+    seniority_rows = await session.execute(
+        select(TalentPoolEntry.seniority_declared, func.count(TalentPoolEntry.id)).group_by(TalentPoolEntry.seniority_declared)
+    )
+    by_seniority = {row[0]: row[1] for row in seniority_rows.all()}
+
+    today = datetime.now(timezone.utc).date()
+    today_count = await session.scalar(
+        select(func.count(TalentPoolEntry.id)).where(
+            func.date(TalentPoolEntry.created_at) == today
+        )
+    )
+
+    last_7_days = await session.execute(
+        select(func.date(TalentPoolEntry.created_at), func.count(TalentPoolEntry.id))
+        .where(TalentPoolEntry.created_at >= datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=7))
+        .group_by(func.date(TalentPoolEntry.created_at))
+        .order_by(func.date(TalentPoolEntry.created_at))
+    )
+    daily = {str(row[0]): row[1] for row in last_7_days.all()}
+
+    return {
+        "total_analyses": total or 0,
+        "today": today_count or 0,
+        "by_tier": by_tier,
+        "by_seniority": by_seniority,
+        "daily_last_7_days": daily,
+    }
 
 
 @app.get("/admin/candidates")

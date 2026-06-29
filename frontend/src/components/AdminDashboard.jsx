@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getCandidates, getCandidate, downloadCV } from '../api/client.js'
+import { getCandidates, getCandidate, downloadCV, getStats } from '../api/client.js'
 import SubsectionCard from './SubsectionCard.jsx'
 
 const TIER_CONFIG = {
@@ -12,6 +12,7 @@ const TIER_CONFIG = {
 
 function AdminDashboard({ adminKey, onLogout }) {
   const [candidates, setCandidates] = useState([])
+  const [stats, setStats] = useState(null)
   const [selected, setSelected] = useState(null)
   const [detail, setDetail] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -20,7 +21,17 @@ function AdminDashboard({ adminKey, onLogout }) {
 
   useEffect(() => {
     loadCandidates()
+    loadStats()
   }, [])
+
+  const loadStats = async () => {
+    try {
+      const data = await getStats(adminKey)
+      setStats(data)
+    } catch {
+      // stats are non-critical, ignore errors
+    }
+  }
 
   const loadCandidates = async () => {
     setLoading(true)
@@ -178,6 +189,31 @@ function AdminDashboard({ adminKey, onLogout }) {
       </div>
 
       {error && <div className="error-banner">{error}</div>}
+
+      {stats && (
+        <div className="stats-bar">
+          <div className="stat-card">
+            <span className="stat-value">{stats.total_analyses}</span>
+            <span className="stat-label">Total Analyses</span>
+          </div>
+          <div className="stat-card">
+            <span className="stat-value">{stats.today}</span>
+            <span className="stat-label">Today</span>
+          </div>
+          {Object.entries(stats.by_seniority || {}).map(([level, count]) => (
+            <div key={level} className="stat-card">
+              <span className="stat-value">{count}</span>
+              <span className="stat-label">{level}</span>
+            </div>
+          ))}
+          {Object.entries(stats.by_tier || {}).map(([tier, count]) => (
+            <div key={tier} className="stat-card">
+              <span className="stat-value">{count}</span>
+              <span className="stat-label">{tier}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="loading-screen">
