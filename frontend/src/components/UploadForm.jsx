@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { analyzeResume } from '../api/client.js'
+import { parseResume } from '../api/client.js'
 
-function UploadForm({ onAnalysis, onError, onLoading }) {
+function UploadForm({ onParseComplete, onError }) {
   const [file, setFile] = useState(null)
-  const [seniority, setSeniority] = useState('mid')
   const [dragActive, setDragActive] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const turnstileRef = useRef(null)
   const [turnstileToken, setTurnstileToken] = useState(null)
 
@@ -60,18 +60,16 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
       return
     }
 
-    onLoading()
-
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('seniority', seniority)
+    setParsing(true)
 
     try {
-      const result = await analyzeResume(formData, turnstileToken)
-      onAnalysis(result)
+      const result = await parseResume(file, turnstileToken)
+      onParseComplete(result)
     } catch (err) {
-      const msg = err.response?.data?.detail || err.message || 'Analysis failed'
+      const msg = err.response?.data?.detail || err.message || 'Failed to parse resume'
       onError(msg)
+    } finally {
+      setParsing(false)
     }
   }
 
@@ -104,28 +102,14 @@ function UploadForm({ onAnalysis, onError, onLoading }) {
         </label>
       </div>
 
-      <div className="form-group">
-        <label htmlFor="seniority">Seniority Level</label>
-        <select
-          id="seniority"
-          value={seniority}
-          onChange={(e) => setSeniority(e.target.value)}
-        >
-          <option value="junior">Junior</option>
-          <option value="mid">Mid</option>
-          <option value="senior">Senior</option>
-          <option value="executive">Executive</option>
-        </select>
-      </div>
-
       {turnstileSiteKey && (
         <div className="turnstile-container">
           <div ref={turnstileRef}></div>
         </div>
       )}
 
-      <button type="submit" className="btn-analyze" disabled={!file}>
-        Analyze Resume
+      <button type="submit" className="btn-analyze" disabled={!file || parsing}>
+        {parsing ? 'Parsing...' : 'Start Analysis'}
       </button>
     </form>
   )

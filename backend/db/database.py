@@ -29,6 +29,8 @@ class TalentPoolEntry(Base):
     analysis_json       = Column(Text, nullable=True)
     priority_fixes_json = Column(Text, nullable=True)
     verdict             = Column(Text, nullable=True)
+    target_country      = Column(String(50), nullable=True, default="germany")
+    referral_source     = Column(String(100), nullable=True)
 
 
 engine_kwargs = {"echo": False}
@@ -44,12 +46,17 @@ async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     async with engine.begin() as conn:
-        try:
-            await conn.execute(text(
-                "ALTER TABLE talent_pool ADD COLUMN IF NOT EXISTS resume_markdown TEXT"
-            ))
-        except Exception:
-            pass
+        for col, typedef in [
+            ("resume_markdown", "TEXT"),
+            ("target_country", "VARCHAR(50) DEFAULT 'germany'"),
+            ("referral_source", "VARCHAR(100)"),
+        ]:
+            try:
+                await conn.execute(text(
+                    f"ALTER TABLE talent_pool ADD COLUMN IF NOT EXISTS {col} {typedef}"
+                ))
+            except Exception:
+                pass
     logger.info("Database initialized")
 
 

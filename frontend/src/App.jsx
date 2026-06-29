@@ -1,33 +1,77 @@
 import React, { useState } from 'react'
 import UploadForm from './components/UploadForm.jsx'
-import LoadingScreen from './components/LoadingScreen.jsx'
+import Questionnaire from './components/Questionnaire.jsx'
 import SplitView from './components/SplitView.jsx'
 import AdminLogin from './components/AdminLogin.jsx'
 import AdminDashboard from './components/AdminDashboard.jsx'
-import { getCandidates } from './api/client.js'
+import { getCandidates, parseResume, analyzeResume } from './api/client.js'
 
 function App() {
   const [screen, setScreen] = useState(
     window.location.pathname === '/admin' ? 'admin-login' : 'upload'
   )
-  const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
   const [adminKey, setAdminKey] = useState(null)
 
-  const handleAnalysis = (data) => {
-    setResults(data)
-    setScreen('results')
+  const [parsedData, setParsedData] = useState(null)
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [analysisDone, setAnalysisDone] = useState(false)
+  const [allQuestionsDone, setAllQuestionsDone] = useState(false)
+  const [analyzing, setAnalyzing] = useState(false)
+
+  const handleParseComplete = (data) => {
+    setParsedData(data)
+    setScreen('questionnaire')
     setError(null)
   }
 
-  const handleError = (msg) => {
+  const handleParseError = (msg) => {
     setError(msg)
     setScreen('upload')
   }
 
+  const handleQuestionnaireComplete = (answers) => {
+    setAllQuestionsDone(true)
+    if (analysisDone && analysisResult) {
+      setResults(analysisResult)
+    }
+  }
+
+  const setResults = (data) => {
+    setAnalysisResult(data)
+    setScreen('results')
+    setError(null)
+  }
+
+  const fireAnalysis = (seniority) => {
+    if (!parsedData || analyzing) return
+    setAnalyzing(true)
+    analyzeResume({
+      resume_text: parsedData.resume_text,
+      resume_markdown: parsedData.resume_markdown,
+      raw_keywords: JSON.stringify(parsedData.raw_keywords),
+      seniority,
+      resume_filename: parsedData.filename,
+    }).then(data => {
+      setAnalysisResult(data)
+      setAnalysisDone(true)
+      if (allQuestionsDone) {
+        setResults(data)
+      }
+    }).catch(err => {
+      const msg = err.response?.data?.detail || err.message || 'Analysis failed'
+      setError(msg)
+      setAnalyzing(false)
+    })
+  }
+
   const handleReset = () => {
     setScreen('upload')
-    setResults(null)
+    setParsedData(null)
+    setAnalysisResult(null)
+    setAnalysisDone(false)
+    setAllQuestionsDone(false)
+    setAnalyzing(false)
     setError(null)
     window.history.pushState({}, '', '/')
   }
@@ -45,6 +89,12 @@ function App() {
     window.history.pushState({}, '', '/admin')
   }
 
+  const handleQuestionAnswered = (stepKey, value) => {
+    if (stepKey === 'seniority') {
+      fireAnalysis(value)
+    }
+  }
+
   return (
     <div className="app">
       <header className="app-header">
@@ -57,16 +107,21 @@ function App() {
 
         {screen === 'upload' && (
           <UploadForm
-            onAnalysis={handleAnalysis}
-            onError={handleError}
-            onLoading={() => setScreen('loading')}
+            onParseComplete={handleParseComplete}
+            onError={handleParseError}
           />
         )}
 
-        {screen === 'loading' && <LoadingScreen />}
+        {screen === 'questionnaire' && (
+          <Questionnaire
+            onComplete={handleQuestionnaireComplete}
+            onStepAnswer={handleQuestionAnswered}
+            analyzing={analyzing}
+          />
+        )}
 
-        {screen === 'results' && results && (
-          <SplitView results={results} onReset={handleReset} />
+        {screen === 'results' && analysisResult && (
+          <SplitView results={analysisResult} onReset={handleReset} />
         )}
 
         {screen === 'admin-login' && (

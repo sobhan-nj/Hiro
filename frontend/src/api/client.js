@@ -4,7 +4,25 @@ const api = axios.create({
   baseURL: import.meta.env.PROD ? '' : '/api',
 })
 
-export const analyzeResume = async (formData, turnstileToken) => {
+export const parseResume = async (file, turnstileToken) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const headers = { 'Content-Type': 'multipart/form-data' }
+  const apiKey = import.meta.env.VITE_ANALYSIS_API_KEY
+  if (apiKey) headers['x-api-key'] = apiKey
+  if (turnstileToken) headers['x-turnstile-token'] = turnstileToken
+  const response = await api.post('/parse', formData, {
+    headers,
+    timeout: 30000,
+  })
+  return response.data
+}
+
+export const analyzeResume = async (params, turnstileToken) => {
+  const formData = new FormData()
+  for (const [key, val] of Object.entries(params)) {
+    if (val !== undefined && val !== null) formData.append(key, typeof val === 'object' ? JSON.stringify(val) : val)
+  }
   const headers = { 'Content-Type': 'multipart/form-data' }
   const apiKey = import.meta.env.VITE_ANALYSIS_API_KEY
   if (apiKey) headers['x-api-key'] = apiKey

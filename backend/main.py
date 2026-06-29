@@ -138,22 +138,18 @@ def _extract_name_from_report(report_data: dict, resume_text: str, filename: str
     return Path(filename).stem
 
 
-@app.post("/analyze")
-@limiter.limit("10/minute")
-async def analyze(
+@app.post("/parse")
+@limiter.limit("20/minute")
+async def parse_upload(
     request: Request,
     file: UploadFile = File(...),
-    seniority: str = Form("mid"),
     x_api_key: str = Header(None),
     x_turnstile_token: str = Header(None),
-    session: AsyncSession = Depends(get_session),
 ):
     if config.ANALYSIS_API_KEY and x_api_key != config.ANALYSIS_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
     if not await _verify_turnstile(x_turnstile_token):
         raise HTTPException(status_code=403, detail="Security check failed. Please try again.")
-    if seniority.lower() not in ("junior", "mid", "senior", "executive"):
-        seniority = "mid"
 
     file_bytes = await file.read()
     if len(file_bytes) > 10 * 1024 * 1024:
@@ -164,8 +160,43 @@ async def analyze(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    return {
+        "resume_text": resume_text,
+        "resume_markdown": resume_markdown,
+        "raw_keywords": raw_keywords,
+        "filename": file.filename,
+        "mime_type": mime_type,
+    }
+
+
+@app.post("/analyze")
+@limiter.limit("10/minute")
+async def analyze(
+    request: Request,
+    resume_text: str = Form(...),
+    resume_markdown: str = Form(""),
+    raw_keywords: str = Form("[]"),
+    seniority: str = Form("mid"),
+    target_country: str = Form("germany"),
+    referral_source: str = Form(""),
+    resume_filename: str = Form("resume.pdf"),
+    x_api_key: str = Header(None),
+    session: AsyncSession = Depends(get_session),
+):
+    if config.ANALYSIS_API_KEY and x_api_key != config.ANALYSIS_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    if seniority.lower() not in ("junior", "mid", "senior", "executive"):
+        seniority = "mid"
+    target_country = target_country.lower().strip() or "germany"
+
+    import json as _json
     try:
-        report = await analyze_resume(resume_text, raw_keywords, seniority)
+        keywords_list = _json.loads(raw_keywords)
+    except (_json.JSONDecodeError, TypeError):
+        keywords_list = []
+
+    try:
+        report = await analyze_resume(resume_text, keywords_list, seniority)
     except Exception as e:
         logger.error(f"Analysis failed: {e}")
         raise HTTPException(status_code=502, detail="LLM analysis failed. Please try again.")
@@ -223,14 +254,28 @@ async def analyze(
         },
         "resume_text": resume_text,
         "resume_markdown": resume_markdown,
-        "resume_filename": file.filename,
+        "resume_filename": resume_filename,
         "rewrites": report.rewrites,
         "priority_fixes": report.priority_fixes,
         "tier": report.tier,
         "verdict": report.verdict,
     }
 
-    full_name = _extract_name_from_report(report_dict, resume_text, file.filename)
+    if target_country != "germany":
+        for dim_key in ("legal_eligibility_status",):
+            if dim_key in report_dict.get("dimensions", {}):
+                report_dict["dimensions"][dim_key]["rating"] = "Not Present"
+                report_dict["dimensions"][dim_key]["summary"] = f"Skipped — not applicable for {target_country.title()} job market."
+                report_dict["dimensions"][dim_key]["issues"] = []
+                report_dict["dimensions"][dim_key]["fixes"] = []
+            for g in report_dict.get("dimension_groups", {}).values():
+                if dim_key in g.get("dimensions", {}):
+                    g["dimensions"][dim_key]["rating"] = "Not Present"
+                    g["dimensions"][dim_key]["summary"] = f"Skipped — not applicable for {target_country.title()} job market."
+                    g["dimensions"][dim_key]["issues"] = []
+                    g["dimensions"][dim_key]["fixes"] = []
+
+    full_name = _extract_name_from_report(report_dict, resume_text, resume_filename)
 
     folder_path = safe_save_to_folder(
         resume_markdown, full_name, seniority
@@ -242,15 +287,17 @@ async def analyze(
         seniority_detected=report.seniority_check.detected_level,
         seniority_match=report.seniority_check.status,
         tier=report.tier,
-        original_filename=file.filename,
-        file_mimetype=mime_type,
-        file_blob=file_bytes,
+        original_filename=resume_filename,
+        file_mimetype="text/markdown",
+        file_blob=b"",
         folder_path=folder_path,
         resume_text=resume_text,
         resume_markdown=resume_markdown,
         analysis_json=json.dumps(report_dict),
         priority_fixes_json=json.dumps(report.priority_fixes),
         verdict=report.verdict,
+        target_country=target_country,
+        referral_source=referral_source or None,
     )
     session.add(entry)
     await session.commit()
@@ -304,11 +351,27 @@ async def get_stats(
     )
     daily = {str(row[0]): row[1] for row in last_7_days.all()}
 
+    referral_rows = await session.execute(
+        select(TalentPoolEntry.referral_source, func.count(TalentPoolEntry.id))
+        .where(TalentPoolEntry.referral_source.isnot(None))
+        .group_by(TalentPoolEntry.referral_source)
+    )
+    by_referral = {row[0] or "unknown": row[1] for row in referral_rows.all()}
+
+    country_rows = await session.execute(
+        select(TalentPoolEntry.target_country, func.count(TalentPoolEntry.id))
+        .where(TalentPoolEntry.target_country.isnot(None))
+        .group_by(TalentPoolEntry.target_country)
+    )
+    by_country = {row[0] or "unknown": row[1] for row in country_rows.all()}
+
     return {
         "total_analyses": total or 0,
         "today": today_count or 0,
         "by_tier": by_tier,
         "by_seniority": by_seniority,
+        "by_referral": by_referral,
+        "by_country": by_country,
         "daily_last_7_days": daily,
     }
 
