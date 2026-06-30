@@ -9,7 +9,7 @@
 set -euo pipefail
 
 APP_DIR="/opt/resume-analyzer"
-DEPLOY_USER="deploy"
+DEPLOY_USER="hiros"
 DOMAIN="${1:-}"
 REPO_URL="${2:-}"
 
